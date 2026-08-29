@@ -13,9 +13,10 @@ Inside `/probe/` liberty is total: Go, Python, Bash, Go tests — whatever settl
 
 Every probe is written to be re-run by a stranger:
 
+- Every probe filename is prefixed with the timestamp it was written, `YYYYMMDD-HHMM-`, so the directory lists them in chronological order (e.g. `20260829-1503-anexo_census.go`, `20260829-1503-anexo_lines.tsv`). The `Run:` line uses the prefixed name; the build tag does not (it stays `probe_<tag>`).
 - Go probes carry a `//go:build probe_<tag>` tag.
-- The header comment states the question the probe answers and a `Run:` line with the exact command (e.g. `Run: go run -tags probe_anexo ./probe/anexo_census.go > probe/anexo_lines.tsv`).
-- Captured data and output files stay beside the script.
+- The header comment states the question the probe answers and a `Run:` line with the exact command (e.g. `Run: go run -tags probe_anexo ./probe/20260829-1503-anexo_census.go > probe/20260829-1503-anexo_lines.tsv`).
+- Captured data and output files stay beside the script, sharing its timestamp prefix.
 - Each probe runs in isolation: it needs nothing but its own file(s) in `/probe/` and the source packages it imports — no edit to the tree, no hand-setup, no sibling probe.
 
 Probes are evidence, not litter: leave them in place after answering. Future sessions read them as reference for how a question was settled, and plans link to them under `/probe/`.
