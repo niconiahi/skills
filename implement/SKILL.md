@@ -1,10 +1,12 @@
 ---
 name: implement
-description: "Implementation session for a GitHub issue labeled ready-for-agent: execute the plan comment, review, commit."
+description: "Implementation session for a GitHub issue labeled ready-for-agent: execute the plan comment in a worktree, then close out."
 disable-model-invocation: true
 ---
 
 # Implement
+
+Layers a GitHub-issue + /plan workflow on top of the base implement skill. Only the plan-interaction specifics live here; the generic mechanics (tdd at seams, typecheck/test cadence, /code-review, commit) come from the base skill.
 
 Takes an issue number. Requires the `ready-for-agent` label — if the issue carries `ready-for-planning` instead, stop: it has no plan yet; run /plan.
 
@@ -14,15 +16,9 @@ Work happens in a git worktree, never on `main` directly. Before starting, confi
 
 Name the worktree exactly `issue-<number>` — the issue number only, no title slug (call `EnterWorktree` with `name: "issue-<number>"`). Claude Code prefixes the branch with `worktree-`, so the branch is always `worktree-issue-<number>` and the directory `.claude/worktrees/issue-<number>`.
 
-The plan comment is the spec: read the issue description and the plan comment, then execute. Re-research only where the plan meets reality and breaks — and note the divergence in an issue comment.
+## Plan as spec
 
-Use /tdd at the seams the plan names.
-
-Run typechecking regularly, single test files regularly, and the full test suite once at the end.
-
-Once done, use /code-review to review the work.
-
-Commit your work to the worktree branch.
+The plan comment is the spec: read the issue description and the plan comment, then execute. Use /tdd at the seams the plan names. Re-research only where the plan meets reality and breaks — and note the divergence in an issue comment.
 
 ## Close out
 
