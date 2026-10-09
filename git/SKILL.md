@@ -23,78 +23,42 @@ Follow conventional commits. Every commit message follows: `type(scope): descrip
 
 ## Scope
 
-- Use scope when the change is scoped to a clear domain: `feat(notifications):`, `fix(booking):`, `chore(infra):`
-- Omit scope for cross-cutting changes: `feat: redesign profile page`
-- Scope uses the domain name, not the file/folder: `notifications` not `src/lib/components/Notifications`
-- Skill file changes use `skill` scope: `docs(skill): add lib utilities`
+A scope names the domain the change lives in, never a file or folder: `fix(acquire):`, `feat(search):`, `chore(evidence):`, `docs(research):`.
+
+A cross-cutting change omits it: `chore: allow just test without a permission prompt`.
+
+A skill or agent file change uses the `skill` scope: `docs(skill): add the result is the name minus the action naming rule`.
 
 ## Description
 
-- ALWAYS one line. No body. No multi-line messages. EVER.
-- ALL lowercase, no period at the end. Even component names, file names, proper nouns — everything lowercase in the commit message
-- Start with a verb: `add`, `fix`, `replace`, `update`, `remove`, `move`, `split`, `improve`
-- Use `add` for wholly new things, `update` for enhancements, `fix` for bugs
-- Be specific about what changed, not vague: `add zone filtering` not `update properties`
-- Keep it concise — under 72 chars
-- Can mention multiple things with `+` when tightly coupled: `add floor support`
+The description is one line, all lowercase (component names, file names and proper nouns included), with no period at the end, no body and no trailer, ever.
+
+It starts with a verb, `add` for wholly new things, `update` for enhancements, `fix` for bugs, and `replace`, `remove`, `move`, `split`, `rename` and `improve` as the change warrants, and says specifically what changed: `add zone filtering`, not `update properties`.
+
+There is no character cap; a description is as long as saying exactly what changed takes, and a specific 95-character line beats a vague 50-character one.
+
+Two tightly coupled things join with `+`: `feat(skill): add review agent + dispatch it per axis from code-review`.
 
 ## Examples from this repo (mandatory reference — this is exactly how every commit must look)
 
 ```
-refactor: extract s3 storage api into reusable unit
-refactor(infra): reorganize gatus groups to mirror docker stacks
-chore(deploy): update image manifest [skip ci]
-feat: extract button styles into css file
-fix(infra): use node for tileserver healthcheck (no curl/wget in image)
-fix(infra): bump planetiler heap to 4g for argentina boundaries
-chore: add download argentina tiles script
-fix(infra): copy tsconfig into production image for tsx path resolution
-feat(business): add marketing and product routes
-fix(scheduler): rewrite backup jobs to avoid ofelia INI parser bug
-chore: update env vars
-docs: add pitch deck, landing copy, pricing, functionalities and terms of service
-feat: update server auth + object store + add display escalation utility
-refactor: restructure routes into (centered) layout + remove old property pages
-feat: add new ui components + update existing for redesign
-feat(design): add icon components for bell, chevron, google and habita brand
-feat(design): add dm sans fonts + redesign style tokens and typography
-feat(infra): add geo tile server config + update gateway and storage
-feat: redesign profile page for (centered) layout and fix type errors
-docs(skill): add lib utilities
-refactor: replace minio with rustfs
-refactor(notifications): use satisfies for compile-time type safety on emitted event
-chore: add satisfies vs v.parse guideline to data validation skill
-feat(notifications): push full notification via sse instead of refetching
-feat(e2e): add per-test cleanup for idempotent test runs
-feat(resilience): handle object store delete failures with requeue + imgproxy fallback placeholder
-feat(notifications): add real-time push via sse + self-contained notification component
-feat(infra): split consumer into three separate services by domain
-feat(broker): add exponential backoff to consumer retries + functional header composition
-feat(security): add redis-based rate limiting per route
-feat(db): add explicit pool config + remove redundant query logging
-feat(subscription): cache subscriptions in kv with 24h ttl + invalidation on mutation
-fix(booking): prevent double-booking with optimistic lock on slot state
-feat(property): add floor support
-feat: replace blob storing with object store + refactor upsert file
-feat: separate stateful services into their own storage service
-feat: improve dco bin + add just db commands
-chore: move config files to config folder + symlink script
-feat(chat): add desriptions + chatbot route
-feat(broker): add consumer + producer + events for emails and others
-feat: add tenant type in onbaroding + lazy fix for development
-feat: add payment wall
-fix(properties): zone search works with spanish special characters
-style: apply formatting
-feat(properties): add zone table + filtering system using zone
-fix: return verify certificate action data
-feat: add info logging in key flows
-feat: implement robust error handling pattern
-feat(seeding): add tags to each created property
-feat(properties): add tag system for filtering + range for min/max
-feat(signature): add actions + lib file
-feat(auth): improved drastically how the property access work
-feat(e2e): add many many test cases + remove tailwind + better skills
-feat(contract): add 3 types of warranty and include in generated pdf
+feat(skill): add review agent + dispatch it per axis from code-review
+chore(evidence): rename 873 bo aviso files to notice for the spanish filename guard
+chore: allow just test without a permission prompt
+style(acquire): format laws_test.go fixtures and tests
+docs(skill): add the result is the name minus the action naming rule
+fix(acquire): surface bo ley decode refusal as law-bo-decode-failed on decode-golden instead of law-bo-no-match
+refactor(test): rename get_target_works to get_targets
+feat(skill): add verify agent + dispatch it from the plan step
+docs(skill): replace the 72 char commit cap with specificity over length
+docs(research): update snippet gap to the matched-term window search stubs carry
+style(search): apply formatting to the scoped chunk scan and its tests
+test(search): report semantic lane candidates for golden queries under year and subject filters
+fix(search): scope the chunk scan and keep scanning so filters never empty the semantic lane
+feat(route): window search_corpus stubs on the matched query terms
+chore(evidence): put the semantic lane evidence test behind a build tag
+docs(evidence): show near-duplicate decoys are hnsw-unreachable for 957
+docs(skill): ban a plain cd into a chunk worktree from the implement orchestrator
 ```
 
 ## No trailers
