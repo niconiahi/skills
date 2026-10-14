@@ -111,13 +111,52 @@ Every option's Standard subsection grades it against that ground: the definition
 `num` is "a number or any other ordered mechanism to identify the structure" (XSD:3244).
 ```
 
-A question no standard speaks to says so once, in its framing, naming what was checked, and its options carry no Standard subsection.
+Every option carries its Standard subsection and its verdict emoji, always: the grade is the most important part of a question. When no profiled standard rules on the decision directly, the option is graded against the nearest ground one does define, the element, property or value set the option models or touches, quoted with its citation, and the framing names what was checked.
 
 ```
-The standard is silent here: AKN fixes num and heading as elements and says nothing about how a reader joins them (STANDARD.md, P1 §4.7).
+#### 🟡 Standard: partial
+
+AKN's `intro` is its own element, "contains paragraphs introducing one or more lower hierarchical elements" (XSD:3284); modelling it as a `JudgmentParagraph` makes it one of the paragraphs it introduces.
 ```
 
 The recommendation is a separate judgment from the fit: when it goes against the best-aligned option, it says why.
+
+## Weighing the options
+
+The options are weighed in a fixed order. The standard fit outranks everything: the option that aligns best with the standard wins over any option that fits less, whatever its value or effort. Value comes next, and between options equal on the standard the higher value wins however much more effort it costs. Effort counts last and only as a tie-breaker, never as a reason to take the option that fits the standard less, delivers less, or leaves the code less clean. This is a legal standard system built for robustness; a smaller diff, a narrower scope, a declared gap where a reachable source exists, a slice kept under its criteria count, a follow-up issue in place of the work, or a saved hour never decides a question against the standard, against value or against hygiene.
+
+```
+1. standard   🟢 beats 🟡 beats 🔴, always
+2. value      higher wins, whatever the effort
+3. effort     lower wins, only between options equal on 1 and 2
+```
+
+A tie is options equal on all three grades, the only case the order leaves undecided. Options equal on the standard but different in value are not a tie: the higher value wins.
+
+```
+A  🟢 standard · 🟡 ▰▰▱ MEDIUM value · 🟢 ▰▱▱ LOW effort
+B  🟢 standard · 🟢 ▰▰▰ HIGH value   · 🔴 ▰▰▰ HIGH effort     ← B wins, decided, not asked
+```
+
+A rename that leaves the code better aligned with the standard's names and the AKN vocabulary the refactor brings in is part of the winning option rather than a separate question, taken even when it reaches files the decision does not otherwise touch and costs more effort.
+
+### A non-green best fit is researched
+
+When no option grades 🟢, a research agent is dispatched per [research/SKILL.md](../research/SKILL.md) to check the official standard for a fit the options missed, before the question is decided or asked; its finding may add an option or regrade one.
+
+### A clear winner is decided, not asked
+
+A question whose winner is clear under the order above is not put to the maintainer. The options are still generated and graded in full, so the decision rests on the same information the maintainer would have had, and the decision is appended to `decisions.md`. Only a tie, top options equal on all three grades, is asked.
+
+The decided questions are reported in one block, one entry per question, each with its three grades.
+
+```
+1. <question title> → <chosen option>
+
+   standard: 🟢 aligns best with <X>
+   value: 🟢 ▰▰▰ HIGH
+   effort: 🟡 ▰▰▱ MEDIUM
+```
 
 ## The frontier moves
 

@@ -6,7 +6,7 @@ tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch, WebSearch
 
 # Evidence
 
-You settle exactly one claim for a slice. The prompt gives you the issue number, the claim in its four fields, and the absolute path of the slice worktree.
+You settle exactly one claim for a slice. The prompt gives you the issue number, the claim in its four fields, the absolute path of the slice worktree and the absolute handoff folder.
 
 The four fields are the contract: `proves` names the file you write and the observation that confirms, `refutes` the observation that refutes, `runtime` the bound you stay under.
 
@@ -27,9 +27,9 @@ cd <worktree> && …
 
 ### Probe
 
-Read [probe/SKILL.md](../probe/SKILL.md) and follow it: explore freely in `/probe/` until the `proves` or the `refutes` observation is on actual output.
+Read [probe/SKILL.md](../skills/probe/SKILL.md) and follow it: explore freely in `/probe/` until the `proves` or the `refutes` observation is on actual output.
 
-Read the [CLAUDE.md](../../CLAUDE.md) trigger-map skills your probe touches ([akn](../akn/SKILL.md), [skos](../skos/SKILL.md), …) first.
+Read the [CLAUDE.md](../../CLAUDE.md) trigger-map skills your probe touches ([akn](../skills/akn/SKILL.md), [skos](../skills/skos/SKILL.md), …) first.
 
 ### Promote
 
@@ -84,11 +84,17 @@ Leave the files uncommitted; the implementer commits them with its slice.
 
 ## Completion
 
-The `.out` exists, was produced by the `Run:` line twice with identical bytes, and shows either the `proves` or the `refutes` observation. Return only what /implement routes on, in this shape; the implementer reads the `.out` itself, so the output stays in the file.
+The `.out` exists, was produced by the `Run:` line twice with identical bytes, and shows either the `proves` or the `refutes` observation. Write the verdict to `<handoff>/evidence-<slug>.md`; the implementer reads the `.out` itself, so the output stays in that file.
 
 ```
 Verdict: CONFIRMED | REFUTED
 Claim: <claim>
 Observed: <one line — the decisive observation>
 Files: evidence/<issue>/<slug>.<ext>, evidence/<issue>/<slug>.out
+```
+
+Your final message is exactly one line and nothing else.
+
+```
+evidence <slug> · DONE · <handoff>/evidence-<slug>.md
 ```

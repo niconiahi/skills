@@ -6,7 +6,7 @@ The monorepo's test taxonomy. Each tier has a complete reference file — read t
 |------|---------------|-----------|
 | Unit | Any package logic: decoders, parsers, HTTP clients, drains; offline, no running service | [unit.md](types/unit.md) |
 | Integration (`-tags integration`) | Anything against a real ParadeDB/Postgres store | [integration.md](types/integration.md) |
-| Golden | Decoder output pinned as `testdata/*.golden.json`; the pending → graduate fixture pipeline (vocabulary: [red-ledger/SKILL.md](../../../.claude/skills/red-ledger/SKILL.md)) | [golden.md](types/golden.md) |
+| Golden | Decoder output pinned as `testdata/*.golden.json`; the red case → graduate fixture pipeline (vocabulary: [red-ledger/SKILL.md](../../../.claude/skills/red-ledger/SKILL.md)) | [golden.md](types/golden.md) |
 | Qrels | Retrieval relevance judgements under `integration/` — TREC/BEIR `(query_id, doc_id, relevance)`, never called goldens | [retrieval-telemetry/SKILL.md](../../../.claude/skills/retrieval-telemetry/SKILL.md) |
 | Real model (`-tags real_model`) | Semantic recall against the live Python embedder | [real_model.md](types/real_model.md) |
 
@@ -76,6 +76,23 @@ Postgres tests run on every task's final gate because ranking correctness lives 
 
 Acquire is tested lightly by design, since it is fetch, rate limit and ledger writes; everything that looks like acquire testing (carátula matching, volume extraction, SAIJ decode, PDF fixture equality) is offline function testing and carries the weight.
 
+## Omit a failure, never leave it red
+
+The suite never shows a FAIL. A test that cannot go green within the task at hand, a red case waiting on its issue or a guard hit on code another issue owns, is omitted by name and listed in [OMITED_FAILURES.md](../../../OMITED_FAILURES.md), which is worked through at the very end.
+
+The omission names the one failing case and never silences the whole test, so a new failure in the same test still shows as FAIL. A table case carries the issue it waits on and skips, and a guard hit is one exact key in the guard's omission list. A probe directory that no longer compiles is renamed with a leading `_`, which `./...` never matches.
+
+```go
+omitted:    "#883",
+test.Skipf("omitted until %s, listed in OMITED_FAILURES.md", item.omitted)
+
+"evidence/960/lead_roles.go:considerando": true,
+```
+
+Each entry in [OMITED_FAILURES.md](../../../OMITED_FAILURES.md) says what fails, what turns it green and where its omission lives, and it leaves the list in the same commit that removes the omission.
+
+> NOTE: TODO: delete this section after every failing test in [OMITED_FAILURES.md](../../../OMITED_FAILURES.md) is green.
+
 ## Fixtures hold exactly what the test needs
 
 A fixture holds only the slice of the document that proves its test's behaviour: the few articles, the one anexo, the pages a caption sits on, never the whole code, tomo or fallo. Decoding a whole document is what made unit tests take seconds; an excerpt decodes in milliseconds and its golden reads at a glance.
@@ -95,7 +112,7 @@ Goldens are small and semantic: one committed fixture per document shape or prov
 
 There is **no soak tier** and it must not come back. No test, probe, plan gate, or acceptance criterion may replay, decode, or diff the entire raw corpus (or the whole database).
 
-Regressions are pinned the TDD way: a minimal fixture reproducing the failure, promoted into goldens/unit tests.
+Regressions are pinned the TDD way: a minimal fixture reproducing the failure, graduated into goldens/unit tests.
 
 If a check needs more than ~1 minute of runtime, it is not a test — it is a maintainer-run operation that only the maintainer may request explicitly. Never write a plan or issue whose gate is "full-corpus run/diff green".
 

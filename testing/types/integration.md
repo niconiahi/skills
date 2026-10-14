@@ -1,6 +1,6 @@
 # Integration tests
 
-`integration/` package — the only global test dir. Task-named files, each testing one user task end-to-end against a real ParadeDB/Postgres store: `bloque_tier_completion_test.go`, `chunk_scoring_test.go`, `citation_stability_test.go`, `decree_body_fallback_test.go`, `golden_fusion_test.go`, `golden_retrieval_test.go`, `law_body_fallback_test.go`, `piramide_ranking_test.go`, `quote_grounding_test.go`, `reset_rebuild_test.go`, plus `main_test.go` and the tagged `semantic_recall_test.go`.
+`integration/` package — the only global test dir. Task-named files, each testing one user task end-to-end against a real ParadeDB/Postgres store: `bloque_tier_completion_test.go`, `chunk_scoring_test.go`, `citation_stability_test.go`, `decree_body_fallback_test.go`, `fusion_test.go`, `law_body_fallback_test.go`, `piramide_ranking_test.go`, `quote_grounding_test.go`, `reset_rebuild_test.go`, `retrieval_test.go`, plus `main_test.go` and the tagged `semantic_recall_test.go`.
 
 Mocking the DB is forbidden (locked principle: ranking correctness lives in SQL and can't be Go-unit-tested).
 

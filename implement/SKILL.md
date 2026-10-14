@@ -1,7 +1,6 @@
 ---
 name: implement
-description: "Implementation session for a GitHub issue labeled ready-for-planning: the window orchestrates, agents read and write. One reader grounds the issue, one slicer cuts it into vertical slices ordered in waves, one implementer per slice writes and commits the code red to green in parallel, one document agent per slice commits its docs and writes its comment; the window merges each wave, runs the gates, fast-forwards main, posts the overview and slice comments and closes the issue. Every step runs once; the branch is the state, so a rerun resumes at the first unmerged slice."
-disable-model-invocation: true
+description: "Implementation session for a GitHub issue labeled ready-for-planning: the window passes messages, agents read, decide and write. One reader grounds the issue, one slicer cuts it into vertical slices ordered in waves, one implementer per slice writes and commits the code red to green in parallel, one document agent per slice commits its docs and writes its comment, one gate agent per check or gate judges its own verdict; the window relays each one-line hand-back, prints the tie questions, forwards the answers, and runs the just implement verbs that merge, land, comment and close. Every step runs once; the branch is the state, so a rerun resumes at the first unmerged slice."
 ---
 
 # Implement
@@ -10,78 +9,126 @@ disable-model-invocation: true
 
 The issue's description is the whole scope. The session builds what it describes and nothing beside it: no step grows the work, a finding outside a slice is filed as a `needs-triage` issue and never built, and a premise the code refutes is put to the maintainer as adjust-or-stop.
 
-Every step runs once per issue or once per slice, and a failed Merge, Check or Gates step runs once more after its repair. The only ways back are a paused or finished agent resumed with `SendMessage` and a grilling question to the maintainer; no agent is dispatched a second time for the same work.
+Every step runs once per issue or once per slice, and a failed Merge, Check or Gates step runs once more after its repair. The only ways back are a paused or finished agent resumed with `SendMessage` and a tie question answered by the maintainer; no agent is dispatched a second time for the same work.
 
 ```
-reader → ❓ → slicer (cut) → ❓ → slicer (briefs) → per wave: implementers ∥ → document agents → merge → narrow checks → gates → main → comments → close
+reader → slicer → per wave: implementers ∥ → document agents → merge → check → gates ∥ → land → comments → close
 ```
 
-## The window is an orchestrator
+## The window passes messages
 
-The window dispatches agents, routes the summaries they return, asks grilling questions, appends each confirmed decision to `decisions.md`, runs git and gh, runs the checks and gates, and composes the comment bodies it posts.
-
-```
-window   dispatch · route · grill · append decision · git/gh · checks and gates · compose comments
-agents   reader · slicer · implementer · evidence · general-purpose (research) · document
-```
-
-Every agent return is said aloud, in the terminal, before the window routes it: one line naming the agent and its target, then the wall time, the tokens and the tool uses the completion notification carries in its `<usage>` block. The figures are the harness's own, never estimated, and the line is printed even when the return is a STOP.
+The window is skinny: it dispatches every agent, relays every hand-back in one line, prints every question file, forwards every answer with `SendMessage`, and runs the `just implement` verbs. Every reading, cut, decision, verdict and comment body is an agent's or a recipe's, and lives on disk in the handoff folder.
 
 ```
-implementer 1a finished · 5m41s · 98,780 tokens · 17 tool uses
+window   dispatch · relay one line · cat question file · SendMessage answer · just implement <verb>
+agents   reader · slicer · implementer · evidence · general-purpose (research) · document · gate
 ```
 
-## Read before the first tool call
+Inside an implement run this file is the one skill the window reads. Every other skill is read by the agent whose work triggers it.
 
-Three skills govern the window's own steps and are read at the start of the run.
+### The hand-back
+
+Every agent's final message is exactly one line, and the full report lives only on disk at the path it names.
 
 ```
-grilling   every decision put to the maintainer     → grilling/SKILL.md
-just       the check and gate commands             → just/SKILL.md
-git        every commit the window makes or names   → git/SKILL.md
+<agent> <target> · <DONE|PAUSED|PASS|FAIL|NOTHING TO APPLY> · <absolute path of its report or question file>
 ```
 
-Once the reading names a profiled standard, akn, skos, otel or retrieval-telemetry, that skill and its `STANDARD.md` are read in full before the first question, per the Standard fit section of [grilling/SKILL.md](../grilling/SKILL.md).
+The window relays that line in the terminal the moment it arrives, followed by the wall time, the tokens and the tool uses the completion notification carries in its `<usage>` block. The figures are the harness's own, never estimated.
+
+```
+implementer 1a · DONE · /…/.github/issues/922/implemented-1a.md · 5m41s · 98,780 tokens · 17 tool uses
+```
+
+### Status
+
+When an issue changes step, a wave merged, a check or gate run finished, a landing, a close, and whenever the maintainer asks, the window runs the status recipe over every issue it orchestrates, one under `/implement <n>`, every in-flight issue under "implement current wave", and prints its output as it comes.
+
+```
+just implement status <n>…
+```
+
+## Choices are graded by the agent that raises them
+
+The reader, the slicer and the implementer grade every choice and every premise refutation they meet themselves, under the order [grilling/SKILL.md](../grilling/SKILL.md) § Weighing the options fixes, standard fit, then value, then effort, against the standards they already read.
+
+A clear winner is decided by the agent, which appends one line to `<handoff>/decisions.md` and continues without pausing.
+
+```
+<agent> <target> · <question title> → <chosen option> · standard 🟢 <X> · value 🟢 ▰▰▰ HIGH · effort 🟡 ▰▰▱ MEDIUM
+```
+
+Two cases pause. A tie, top options equal on all three grades as [grilling/SKILL.md](../grilling/SKILL.md) § Weighing the options defines it, so options equal on the standard but different in value are decided for the higher value whatever the effort, and a premise refutation that breaks what the issue asks, so no reading of it can be built as described. The agent writes the full question, in the exact shape of [grilling/SKILL.md](../grilling/SKILL.md) § The shape of a question, to `<handoff>/question-<k>.md`, and returns PAUSED naming that file. `<k>` is the agent's target and a running number, `question-1a-2.md`, `question-slicer-1.md`, so parallel agents never collide.
+
+A fact the agent cannot settle by reading, an empirical claim or an external-docs question, also pauses, since a subagent cannot dispatch one: the agent writes every such line to `<handoff>/needs-<target>-<j>.md` and returns PAUSED naming that file. A best fit that grades below 🟢, which grilling researches before deciding, is one of these `Needs: research` lines. Facts come before decisions, so an agent holding both pauses on its needs first and grades its choices once they return.
 
 ## Pause and resume
 
-A slicer or an implementer that meets something it cannot settle alone returns PAUSED with the lines the window routes, and stops. The window settles each line, a grilling question or an evidence or research dispatch, then sends the answers to the same agent with `SendMessage`, and the agent resumes in its own context.
-
-```
-PAUSED   Choices | Needs | Premise   → ❓ or evidence/research → SendMessage <agent> "<answers>" → resumes
-```
-
 Agents are dispatched in the background so a pause never blocks the agents beside it, and every implementer's and document agent's id is kept until the Gates step passes, since a repair resumes them.
+
+A PAUSED hand-back naming a question file is printed in full, and the maintainer's answer goes back to the same agent, which appends it to `decisions.md` and resumes in its own context.
+
+```
+cat <handoff>/question-<k>.md
+SendMessage <agent id> "<the maintainer's answer>"
+```
+
+A PAUSED hand-back naming a needs file gets one agent per line, all at once, each prompted with the issue number, the line, the absolute slice worktree path and the absolute handoff folder.
+
+```
+Needs: <claim> | proves … | refutes … | runtime …   → subagent_type: evidence, description: "settling claim <stem>"
+Needs: research <stem> | <question>                 → subagent_type: general-purpose, per research/SKILL.md, description: "researching <stem>"
+```
+
+The research prompt asks for the same one-line hand-back, naming the note it wrote. Once every one has handed back, their report paths go to the paused agent in one message.
+
+```
+SendMessage <agent id> "<report path>, <report path>, …"
+```
+
+### Stop
+
+An answer of stop is forwarded like any other. The agent appends it to `decisions.md`, writes `<handoff>/stop.md` quoting the refuted claim and its evidence `.out` inline, and hands back DONE naming it. The run then ends without landing anything and leaves the issue clean for whoever takes it next, since a rerun would otherwise resume on the refuted reading and cut. The stop comment stays as the one record of why the run stopped, and every issue the implementers filed stays.
+
+```
+gh issue edit <n> --remove-label ready-for-planning --add-label needs-triage
+gh issue comment <n> --body-file <primary>/.github/issues/<n>/stop.md
+gh issue edit <n> --remove-assignee @me
+Status → Todo             the board's item-edit, per issue-tracker.md § The board
+git worktree remove --force <primary>/.claude/worktrees/implement-<n>-<id>      every slice worktree
+git worktree remove --force <primary>/.claude/worktrees/implement-<n>
+git branch -D implement-<n> implement-<n>-<id> …
+rm -rf <primary>/.github/issues/<n>
+```
 
 ## Repair
 
-A failed merge, check or gate is one grilling question naming the failure and the slices that own its files. When the answer is to fix, the window resumes each owning implementer with `SendMessage`, never a fresh dispatch, with the failing lines, the answer and the `implement-<n>` worktree path.
+A first failed check or gate is repaired without asking the maintainer, since the answer is always fix: the window relays the gate's line and resumes, at once, each implementer of a slice the failing report names as owner, with the report path. A merge conflict is repaired the same way: the window relays the recipe's line and resumes the later slice's implementer, telling it to replay every commit of its slice branch onto `implement-<n>` with the conflicting hunks resolved so the earlier slices' changes stay intact. A fix resumes each owning implementer with `SendMessage`, never a fresh dispatch.
 
 ```
-SendMessage implementer-<id> "Repair on <primary>/.claude/worktrees/implement-<n>: <failing lines> · <answer>"
+SendMessage <implementer id> "Repair on <primary>/.claude/worktrees/implement-<n>: <report path> · fix"
 ```
 
-The implementer fixes the failure on `implement-<n>`, reruns the failing command, and commits one `fix(<scope>): …` line, or, for a merge conflict, cherry-picks its own slice onto `implement-<n>` with the conflict resolved, keeping its subject. Then the window resumes that slice's document agent with the commit, so it rechecks its owned sections and adds the commit to `slice-<id>.md`.
+The implementer fixes the failure on `implement-<n>` and hands back DONE naming `implemented-<id>.md`, whose Repairs section carries the new commits. The window resumes that slice's document agent with the same path, so it rechecks its owned sections and adds the commits to `slice-<id>.md`.
 
 ```
-SendMessage document-<id> "Repair commit <sha> <subject> on <primary>/.claude/worktrees/implement-<n>"
+SendMessage <document id> "Repair: <handoff>/implemented-<id>.md"
 ```
 
-The failed step then reruns once. A second failure is a grilling question whose only answers are stop or a decision the maintainer writes out; it never starts a second repair on its own.
+The failed step then reruns once. A second failure of the same check or gate is the one put to the maintainer, by printing its report, with stop or a decision the maintainer writes out as the answers; the window starts no second repair on its own. A merge rerun that conflicts on the next slice is repaired the same way, slice by slice, until the wave merges.
 
 ```
-fail → ❓ → implementer fix commit → document recheck → step reruns once → fail → ❓ stop
+fail → answer → implementer fix commit → document recheck → step reruns once → fail → stop
 ```
 
 ## Worktrees and handoff folder
 
 The issue's work happens in one worktree, `implement-<n>` on branch `implement-<n>`, and `main` moves once, by a fast-forward of that branch. Each slice of a wave gets its own worktree, `implement-<n>-<id>` on branch `implement-<n>-<id>`, cut from `implement-<n>` when its wave starts.
 
-The session stays parked in the primary checkout, the first path in `git worktree list`; every command aimed at a worktree carries its path, written out literally since a hook rejects shell variable assignments, and `just` takes both flags because it refuses `--working-directory` without `--justfile`.
+The session stays parked in the primary checkout, the first path in `git worktree list`; every command aimed at a worktree carries its path, written out literally since a hook rejects shell variable assignments.
 
 ```
 git -C <primary>/.claude/worktrees/implement-<n> …
-just --justfile <wt>/justfile --working-directory <wt> …
 ```
 
 `EnterWorktree` and a plain `cd` into a worktree are both banned: the first fences every subagent to that worktree, the second persists across Bash calls and turns the worktree into the primary directory.
@@ -90,15 +137,19 @@ The handoff folder is the primary checkout's gitignored `.github/issues/<n>/`. I
 
 ```
 <primary>/.github/issues/<n>/
-  reading.md            reader        the reading
-  ground.md             reader        the ground the slicer cuts on
-  overview.md           reader        the overview comment, without its Decisions
-  decisions.md          window        one confirmed decision per line
-  slices.md             slicer        the cut: ids, waves, After, ownership, commit subjects, tests
-  brief-<id>.md         slicer        one per slice
-  implemented-<id>.md   implementer   tests, research, evidence, refutations of one slice
-  slice-<id>.md         document      the slice comment, commit subjects not yet linked
-  gate-<name>.log       window        one per check or gate run
+  reading.md              reader        the reading
+  ground.md               reader        the ground the slicer cuts on
+  overview.md             reader        the overview comment, without its Decisions
+  decisions.md            agents        one decision per line, decided or answered
+  question-<k>.md         agents        one tie or premise question, in grilling's shape
+  needs-<target>-<j>.md   agents        the Needs lines of one pause
+  slices.md               slicer        the cut: ids, waves, After, ownership, commit subjects, tests, reds
+  brief-<id>.md           slicer        one per slice
+  implemented-<id>.md     implementer   tests, research, evidence, refutations, repairs of one slice
+  evidence-<slug>.md      evidence      the verdict on one claim
+  slice-<id>.md           document      the slice comment, commit subjects not yet linked
+  gate-<name>.md          gate          the verdict of one gate or wave check, beside its logs
+  stop.md                 agents        the stop comment, only on a stop
 ```
 
 ## Steps
@@ -107,25 +158,25 @@ The steps run in the order of the headings below. A rerun walks the same steps a
 
 ### Gate and open
 
-The issue must carry `ready-for-planning`, have no open native blocker, and be unclaimed, no assignee and Status not In progress on the board; otherwise the session names what fails and ends.
+The issue must carry `ready-for-planning`, have no open native blocker, and be either unclaimed, no assignee and Status not In progress on the board, or claimed by `@me` alone, as `just board verify-claim` leaves a wave it fired; otherwise the session names what fails and ends.
 
 ```
 gh issue view <n> --json labels,state,assignees
 gh api repos/niconiahi/machina-iuris/issues/<n> --jq .issue_dependencies_summary.blocked_by      0
 ```
 
-The session's first write is the claim, per [issue-tracker.md](../../../docs/agents/issue-tracker.md) § The board: the issue is assigned to the maintainer and its Status set to In progress, so no other session offers or takes it.
+The session's first write is the claim, per [issue-tracker.md](../../../docs/agents/issue-tracker.md) § The board: the issue is assigned to the maintainer and its Status set to In progress, so no other session offers or takes it. On an issue a wave already claimed both writes are no-ops.
 
 ```
 gh issue edit <n> --add-assignee @me
 Status → In progress      the board's item-edit, per issue-tracker.md § The board
 ```
 
-Local `main` is reconciled with origin once, so the worktree is cut from the true tip. A refused fast-forward means local `main` diverged from origin, which is a grilling question.
+Local `main` is reconciled with origin once, so the worktree is cut from the true tip. A refused fast-forward means local `main` diverged from origin, which is put to the maintainer.
 
 ```
 git fetch origin
-git merge --ff-only origin/main        # refused → ❓ local main diverged from origin
+git merge --ff-only origin/main
 ```
 
 A worktree a previous run left is reused as it is, since its commits are that run's merged slices, and any uncommitted change in it is stashed, never discarded. A missing worktree is opened from `main`, and its `post-checkout` hook runs `just setup`.
@@ -141,49 +192,35 @@ Completion is the worktree present on `implement-<n>` with a clean status.
 
 Skipped when `reading.md`, `ground.md` and `overview.md` exist.
 
-Dispatch one reader agent, [reader.md](../.agents/reader.md), with the issue number and the absolute handoff folder. It reads the issue once, checks every assertion in it against `main`, writes its three files, and returns the reading and one line per load-bearing false verdict.
+Dispatch one reader agent, [reader.md](../../../.claude/agents/reader.md), with the issue number and the absolute handoff folder. It reads the issue once, checks every assertion in it against `main`, decides every load-bearing false verdict it can, writes its three files, and hands back DONE naming `reading.md`.
 
 ```
 subagent_type: reader
 description: "reading issue"
 ```
 
-The reading is said out loud, verbatim from the summary. Each load-bearing line is a grilling question, the premise was wrong, what does the issue want, and its answer is appended to `decisions.md`.
-
-Completion is the reading said and every load-bearing line answered in `decisions.md`.
+Completion is a DONE hand-back from the reader.
 
 ### Slice
 
 Skipped when `slices.md` and a `brief-<id>.md` for every slice in it exist.
 
-Dispatch one slicer agent, [slicer.md](../.agents/slicer.md), with the issue number, the absolute handoff folder and the absolute `implement-<n>` worktree path. It cuts the work into vertical slices, writes `slices.md`, and returns PAUSED with the cut and every open choice.
+Dispatch one slicer agent, [slicer.md](../../../.claude/agents/slicer.md), with the issue number, the absolute handoff folder and the absolute `implement-<n>` worktree path. It cuts the work into vertical slices, decides every choice it can, writes `slices.md` and one brief per slice, and hands back DONE naming `slices.md`.
 
 ```
 subagent_type: slicer
 description: "slicing issue"
 ```
 
-The cut is said out loud. Each `Choices` line is a grilling question, its Standard subsections filled from the line's fit, and its answer is appended to `decisions.md`. Then the slicer is resumed once with every answer, writes one brief per slice, and returns DONE.
-
-```
-SendMessage slicer "Decisions: <line>, <line>, …  Write the briefs."
-```
-
-A slicer with no open choice still pauses on the cut, and is resumed with "No decisions. Write the briefs."
-
-Completion is `slices.md` and every brief on disk, from a DONE return.
+Completion is a DONE hand-back from the slicer.
 
 ### Waves
 
-The waves run in order, and inside a wave every slice runs in parallel. A slice whose code commit subject, from `slices.md`, is already on `implement-<n>` is done and skipped, and a wave whose slices are all done is skipped.
-
-```
-git -C <primary>/.claude/worktrees/implement-<n> log --format=%s main..implement-<n>
-```
+The waves run in order, and inside a wave every slice runs in parallel. The slice ids and waves are the ones `just implement status <n>` prints. A slice whose last code commit subject, from `slices.md`, is already on `implement-<n>` is done and skipped, and a wave whose slices are all done is skipped.
 
 #### Open the slice worktrees
 
-Each slice not done gets its worktree from the current `implement-<n>`. A slice worktree a previous run left whose branch already carries the slice's code commit is kept, and its implementer is not dispatched again.
+Each slice not done gets its worktree from the current `implement-<n>`. A slice worktree a previous run left is kept: when its branch carries the slice's last code commit its implementer is not dispatched again, and when it carries only some of its subjects its implementer resumes at the first subject the branch lacks.
 
 ```
 git worktree add <primary>/.claude/worktrees/implement-<n>-<id> -b implement-<n>-<id> implement-<n>
@@ -191,170 +228,112 @@ git worktree add <primary>/.claude/worktrees/implement-<n>-<id> -b implement-<n>
 
 #### Implement
 
-Dispatch one implementer agent, [implementer.md](../.agents/implementer.md), per slice, all at once, with the issue number, the slice id, the absolute handoff folder and the absolute slice worktree path. It writes the slice red to green with tdd, commits it under the brief's commit subject, writes `implemented-<id>.md`, and returns DONE.
+Dispatch one implementer agent, [implementer.md](../../../.claude/agents/implementer.md), per slice, all at once, with the issue number, the slice id, the absolute handoff folder and the absolute slice worktree path. It writes the slice red to green, one commit per subject of the brief, in order, writes `implemented-<id>.md`, and hands back DONE naming it.
 
 ```
 subagent_type: implementer
 description: "implementing slice <id>"
 ```
 
-Each return is routed the moment it arrives, while the others keep running. A PAUSED return carries three kinds of line.
+Each hand-back is relayed the moment it arrives, while the others keep running, and a PAUSED one is routed per Pause and resume.
 
-```
-Needs     an empirical claim   → evidence agent, prompt: issue, the four fields, the slice worktree path
-          an external-docs one → general-purpose agent per research/SKILL.md, prompt: the slice worktree path
-Choices   a design choice      → ❓ → decisions.md
-Premise   a refutation that breaks what the issue asks → ❓ adjust within the issue | stop
-```
-
-```
-subagent_type: evidence
-description: "settling claim <evidence file stem>"
-subagent_type: general-purpose
-description: "researching <note file stem>"
-```
-
-The verdicts and answers go back to the implementer with `SendMessage` in one message, and it resumes. A refutation that stays inside the slice never reaches the window: the implementer absorbs it and records it.
-
-An answer of stop ends the run without landing anything, and leaves the issue clean for whoever takes it next: the issue's `ready-for-planning` is swapped for `needs-triage`, one comment quotes the refuted claim and its evidence `.out` inline, the claim is released, and every worktree, every `implement-<n>*` branch and the handoff folder are deleted, since a rerun would otherwise resume on the refuted reading and cut. The stop comment stays as the one record of why the run stopped, and every issue the implementers filed stays.
-
-```
-gh issue edit <n> --remove-label ready-for-planning --add-label needs-triage
-gh issue comment <n> --body-file <primary>/.github/issues/<n>/stop.md
-gh issue edit <n> --remove-assignee @me
-Status → Todo             the board's item-edit, per issue-tracker.md § The board
-git worktree remove --force <primary>/.claude/worktrees/implement-<n>-<id>      every slice worktree
-git worktree remove --force <primary>/.claude/worktrees/implement-<n>
-git branch -D implement-<n> implement-<n>-<id> …
-rm -rf <primary>/.github/issues/<n>
-```
-
-Completion is a DONE return from every implementer of the wave.
+Completion is a DONE hand-back from every implementer of the wave.
 
 #### Document
 
-Dispatch one document agent, [document.md](../.agents/document.md), per slice the moment its implementer returns DONE, with the issue number, the slice id, the absolute handoff folder and the absolute slice worktree path. It commits the docs the slice's code makes true, writes `slice-<id>.md`, and returns DONE or NOTHING TO APPLY.
+Dispatch one document agent, [document.md](../../../.claude/agents/document.md), per slice the moment its implementer hands back DONE, with the issue number, the slice id, the absolute handoff folder and the absolute slice worktree path. It commits the docs the slice's code makes true, writes `slice-<id>.md`, and hands back DONE or NOTHING TO APPLY naming it.
 
 ```
 subagent_type: document
 description: "documenting slice <id>"
 ```
 
-Completion is a return from every document agent of the wave and a `slice-<id>.md` for every slice.
+Completion is a hand-back from every document agent of the wave.
 
 #### Merge
 
-The wave's slices are cherry-picked onto `implement-<n>` in id order, so history stays linear and every commit keeps its subject; then the slice worktrees and branches are removed.
+The recipe cherry-picks the wave's slice branches onto `implement-<n>` in id order, so history stays linear and every commit keeps its subject, then removes the slice worktrees and branches, and prints one line.
 
 ```
-git -C <primary>/.claude/worktrees/implement-<n> cherry-pick implement-<n>..implement-<n>-<id>
-git worktree remove <primary>/.claude/worktrees/implement-<n>-<id>
-git branch -D implement-<n>-<id>
+just implement merge <n> <wave>
 ```
 
-A conflict means two slices of the wave touched the same lines, a seam the slicer cut wrong: the cherry-pick is aborted and it is a grilling question naming both slices and the file, answered per Repair by the later slice's implementer.
-
-```
-git -C <primary>/.claude/worktrees/implement-<n> cherry-pick --abort    → ❓ → Repair
-```
+A conflict means two slices of the wave touched the same lines, a seam the slicer cut wrong: the recipe aborts the cherry-pick and its line names both slices and the file. It is repaired per Repair without asking the maintainer, by the later slice's implementer, and the merge reruns.
 
 #### Check
 
-The window runs the build and every merged slice's narrow test commands, from `slices.md`, on `implement-<n>`, each writing its full output to its log while the window reads only the exit code and the last forty lines. A failure is one grilling question naming the test and the slices whose files it touches, answered per Repair; it is never a redispatch.
+Dispatch one gate agent, [gate.md](../../../.claude/agents/gate.md), for the wave, with the wave number, the absolute `implement-<n>` worktree path, the absolute primary checkout path and the absolute handoff folder. It runs the build and every merged slice's narrow tests from `slices.md`, judges its own verdict, and hands back PASS or FAIL naming `gate-wave-<w>.md`.
 
 ```
-just --justfile <wt>/justfile --working-directory <wt> build > <handoff>/gate-build-<wave>.log 2>&1; echo "exit $?"
-just --justfile <wt>/justfile --working-directory <wt> test "<TestName>" > <handoff>/gate-<id>.log 2>&1; echo "exit $?"; tail -n 40 <handoff>/gate-<id>.log
+subagent_type: gate
+description: "checking wave <w>"
 ```
 
-A test command whose test lives in a `//go:build integration` file carries the tag, `test "-tags integration ./<package>/ -run <TestName>"`; without it the file is compiled out and the check passes on `[no tests to run]`, which counts as a failure.
+A FAIL is repaired per Repair.
 
 Completion is every wave merged and checked, and no slice worktree left.
 
 ### Gates
 
-Every gate runs once, all in parallel, as background Bash calls on `implement-<n>`, each writing its full output to its log while the window reads only the exit code and the last forty lines.
+Dispatch four gate agents at once, one per gate, format, build, vet and test, each with the gate's name, the absolute `implement-<n>` worktree path, the absolute primary checkout path and the absolute handoff folder. Each runs its gate at branch scope, judges its own verdict, and hands back PASS or FAIL naming `gate-<name>.md`.
 
-| Gate | Command | Pass when |
-|------|---------|-----------|
-| format | `git -C <wt> diff --name-only --diff-filter=AM main...HEAD -- '*.go' ':!evidence' \| sed 's\|^\|<wt>/\|' \| xargs -r go tool golines --tab-len=2 -l` | output empty |
-| build | `just … build` | exit 0 |
-| vet | `just … vet` | exit 0 |
-| test | `just … test -tags integration ./...`, Bash `timeout` at `600000` | exit 0, or the failing tests are exactly the expected reds |
-
-An expected red is a pending case the issue exists to capture, listed in its slice's line in `slices.md`; a listed expected red that passes, or any other failing test beside it, fails.
+Every implementer already ran the same four gates at slice scope over its own commits before it handed back, so a gate failure here is one no single slice's diff showed.
 
 ```
-grep -E -- '--- FAIL' <handoff>/gate-test.log
+subagent_type: gate
+description: "running gate <name>"      format · build · vet · test
 ```
 
-A failure is a grilling question naming the gate, the failing lines and the slices whose files they touch, answered per Repair, after which every gate reruns once.
+A FAIL is repaired per Repair, after which every gate reruns once.
 
 Completion is every gate PASS.
 
 ### Land
 
-From the primary checkout, `main` fast-forwards onto `implement-<n>` and is pushed. A refused fast-forward or push means `main` moved during the run, which is a grilling question, never a loop.
+The recipe fast-forwards `main` onto `implement-<n>` from the primary checkout, pushes, and prints one line; it refuses when `main` diverged.
 
 ```
-git merge --ff-only implement-<n>
-git push
-refused → ❓ main moved: rebase implement-<n> onto main and rerun the Gates step | stop
+just implement land <n>
+```
+
+A refusal means `main` moved during the run, and the answer is always rebase, so it is never put to the maintainer. The window rebases `implement-<n>` onto `main` in its worktree, reruns the Gates step, and lands again; a later refusal rebases again.
+
+```
+git -C <primary>/.claude/worktrees/implement-<n> rebase main
+```
+
+A conflicting rebase is aborted and repaired like a merge conflict, without asking: the window resumes the implementer of the slice that owns the conflicting file, telling it to rebase `implement-<n>` onto `main` with the conflicting hunks resolved so both sides' changes stay intact, then reruns the Gates step.
+
+```
+git -C <primary>/.claude/worktrees/implement-<n> rebase --abort
+SendMessage <implementer id> "Rebase <primary>/.claude/worktrees/implement-<n> onto main: conflict in <files> · keep both sides"
 ```
 
 Completion is `main` on origin carrying every slice's commits.
 
 ### Post the comments
 
-The window composes the posted bodies. The overview is `overview.md` with `decisions.md` appended under its `### Decisions` heading. Each slice comment is `slice-<id>.md` with every commit subject in its Commits section linked to its commit on `main`.
+The recipe composes the overview from `overview.md` and `decisions.md`, and each slice comment from `slice-<id>.md` with its commit subjects linked to their commits on `main`, upserts them by marker, overview first and slices in id order, and prints one line.
 
 ```
-git log --format='%H %s' <first slice commit>~1..main
-- feat(akn): resolve decree iri from census key   →   - [feat(akn): resolve decree iri from census key](https://github.com/niconiahi/machina-iuris/commit/<sha>)
+just implement comments <n>
 ```
 
-The bodies are upserted by marker, the overview first and the slices in id order, so the issue reads in the order the work ran: a comment whose marker exists is edited in place, a new marker is posted, and a plan marker on the issue that no body carries is deleted.
-
-```
-gh api repos/niconiahi/machina-iuris/issues/<n>/comments --paginate --jq '.[] | {id, marker: (.body | capture("^<!-- (?<m>plan:[^ ]+) -->").m)}'
-marker exists   → gh api -X PATCH repos/niconiahi/machina-iuris/issues/comments/<id> -F body=@<path>
-marker new      → gh issue comment <n> --body-file <path>
-marker gone     → gh api -X DELETE repos/niconiahi/machina-iuris/issues/comments/<id>
-```
-
-Every issue a slice filed or commented on, listed in its Found outside the slice section, gets its `slice <id>` linked to that slice's comment, now that the comment exists.
-
-```
-Found while implementing [#<n>](…/issues/<n>) · slice <id>   →   Found while implementing [#<n>](…/issues/<n>) · [slice <id>](…/issues/<n>#issuecomment-<id>)
-gh api -X PATCH repos/niconiahi/machina-iuris/issues/<found>            -F body=@<edited body>       a filed issue
-gh api -X PATCH repos/niconiahi/machina-iuris/issues/comments/<id>      -F body=@<edited body>       an "Also found" comment
-```
-
-Completion is the issue carrying exactly one comment per composed body and no other plan marker, and every found issue's slice linked.
+Completion is the issue carrying exactly one comment per composed body and no other plan marker.
 
 ### Close
 
-The issue closes with a comment naming the landed range and its `ready-for-planning` label is removed. Then `just worktree prune`, from the primary checkout, removes the worktree, the branch, their test databases and the handoff folder, since the issue is closed; a prune refused because paradedb is down is a grilling question.
+The recipe closes the issue with a comment naming the landed range, removes `ready-for-planning`, prunes the worktree, the branch, their test databases and the handoff folder, runs the self-check, and prints one line, so a run that died halfway is visible as such to the next. A prune refused because paradedb is down is put to the maintainer.
 
 ```
-gh issue close <n> --comment "Landed <first short sha>..<last short sha>"
-gh issue edit <n> --remove-label ready-for-planning
-just worktree prune
-```
-
-The last action is the self-check, printed, so a run that died halfway is visible as such to the next.
-
-```
-gh issue view <n> --json state,labels
-git worktree list | grep implement-<n>     # empty
-git branch --list 'implement-<n>*'         # empty
+just implement close <n>
 ```
 
 ## Slices and waves
 
-A slice is a vertical cut through the issue: one behaviour, end to end, with its own test, committed on its own and true on its own. The slicer fixes every slice's ownership, the files and top-level declarations it touches and the doc sections it rewrites, and two slices in one wave never own the same one.
+A run is one wave. A slice is one connected group of the issue's work, vertical and true on its own: pieces where one consumes a symbol or signature the other introduces or changes, or where one's tests read a line of a single-point file the other writes, are one slice, and pieces that share nothing are parallel slices. The slicer fixes every slice's ownership, the files and top-level declarations it touches and the doc sections it rewrites, and no two slices own the same one.
 
-Two slices go in different waves, the later one listing the earlier in its `After` line, when one consumes a symbol or signature the other introduces or changes, or when both need a single-point file. A single-point file is owned by exactly one slice.
+A single-point file is owned by exactly one slice, which writes every line of it the issue needs.
 
 ```
 go.mod
@@ -364,7 +343,9 @@ a registry or table both append to
 the same golden
 ```
 
-The slice id carries the wave, `1a`, `1b`, `2a`, so ordering by id is ordering by wave.
+A slice carries 8 or fewer behavioural criteria, the issue's acceptance criteria without the generic `just test` gate; a larger group is a split at triage, per [triage-labels.md](../../../docs/agents/triage-labels.md#size-labels). Its code lands as an ordered series of commits, one per criterion, preceded by one enabling commit when the criteria share a change none of them names, and its last subject is its done key.
+
+The slice id carries the wave, `1a`, `1b`, `1c`, so ordering by id is ordering by wave.
 
 ## The comments
 

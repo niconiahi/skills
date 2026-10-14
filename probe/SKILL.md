@@ -43,6 +43,6 @@ Each probe runs in isolation, needing nothing but its own files in `/probe/` and
 
 Probes stay in place after answering as a local trail, but nothing links to `/probe/`.
 
-When a plan rests on the answer, the proving core is promoted to committed evidence under `evidence/<issue>/`, in the format [evidence.md](../.agents/evidence.md) fixes.
+When a plan rests on the answer, the proving core is promoted to committed evidence under `evidence/<issue>/`, in the format [evidence.md](../../../.claude/agents/evidence.md) fixes.
 
 The completion criterion is the question answered with the probe's actual output quoted, and the script sitting in `/probe/` with its `Run:` line so any session reproduces the answer.

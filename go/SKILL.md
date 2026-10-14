@@ -122,8 +122,35 @@ var ERROR_INVALID_INPUT = errors.New("invalid input")
 
 Every Go identifier (types, funcs, fields, consts, params, locals) is English. Spanish survives only in non-identifier positions: string literals, struct tags (`json:"actor"`), regex patterns, presentation labels (`"Fallo"`, `"Sumario"`), and data cells. This is a hard boundary: rename a name, never a value.
 
-Two audited exceptions exist where a stored value is also English, because it round-trips a contract: the census/class tokens `"judgment"`/`"volume"` (ledger `class` column, the census-key grammar in [akn/SKILL.md](../../../.claude/skills/akn/SKILL.md)) and the código status enum `"in-force"`/`"repealed"`/`"superseded-in-progress"`. Everything else the codebase stores or displays stays Spanish.
+Two audited exceptions exist where a stored value is also English, because it round-trips a contract: the census/class tokens `"judgment"`/`"volume_part"` (ledger `class` column, the census-key grammar in [akn/SKILL.md](../../../.claude/skills/akn/SKILL.md)) and the código status enum `"in-force"`/`"repealed"`/`"superseded-in-progress"`. Everything else the codebase stores or displays stays Spanish.
 
 ## No Comments
 
 Never add comments to Go code. No doc comments, no inline comments, no commented-out code. The code speaks for itself.
+
+## Closed Dispatches
+
+A switch or map lookup over a closed set, an akn enum such as `akn.EdgeLabel` or a table the binary carries, has two halves that ship together. The dispatch ends in a trailing panic naming the table the value fell outside of, so a value off the set stops the program at the line that met it instead of flowing on as a silent default.
+
+```go
+panic(fmt.Sprintf("<package>: <Function> carries <type> %q, not one of <package>.<TABLE>", value))
+panic(fmt.Sprintf("store: edge %s->%s carries akn.EdgeLabel %q, not one of akn.EDGE_LABELS", from, to, label))
+```
+
+Beside it sits a totality test that ranges over the exported value slice and drives every member through the dispatch, so a member added to the slice without its arm fails the test before it can reach the panic in production.
+
+```go
+for _, label := range akn.EDGE_LABELS {
+	dispatch(label)
+}
+```
+
+A `json.Marshal` over a value the code built itself, a struct, slice or map of plain fields, cannot fail, so its error branch is dead code. It goes through `jsonx.MustMarshal`, which returns the bytes and panics naming the value's type if the encoder ever refuses one.
+
+```go
+before   body, error := json.Marshal(embed_request{IDs: ids, Texts: texts})
+         if error != nil {
+             return nil, error
+         }
+after    body := jsonx.MustMarshal(embed_request{IDs: ids, Texts: texts})
+```

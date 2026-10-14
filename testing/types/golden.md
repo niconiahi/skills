@@ -41,17 +41,17 @@ Goldens are named by scenario slug (`plain-ley`, `anexo-decreto`, `format-era-le
 
 `internal/akn` goldens are built from hand-authored `Act`/`Judgment` structs; `internal/source` goldens decode a `testdata/*.html|json|pdf` fixture first, then golden the resulting units (see the `TestDecode_Goldens` table in [unit.md](unit.md)).
 
-## Pending specimens — the table harness
+## Red-ledger specimens — the table harness
 
-[internal/source/pending_test.go](../../../../internal/source/pending_test.go) holds two tables, `pending_cases` and `documented_defects`, not a filename-prefix switch.
+[internal/source/red_ledger_test.go](../../../../internal/source/red_ledger_test.go) holds two tables, `red_cases` and `characterization_cases`, not a filename-prefix switch.
 
 Each row names committed `testdata/` bytes (`specimens`) and a **chain** function that re-runs the real indexer pipeline slice from raw bytes (decode → parse → units → span verify), so deep conditions (zero units, span mismatch) surface as errors instead of hiding behind a single decode call.
 
-`pending_cases` holds specimens the decoder must eventually handle: each row is **red until the decoder is fixed** and carries a `represents` count (how many corpus failures that specimen stands for), so the table's length is the open-defect census.
+`red_cases` holds specimens the decoder must eventually handle: each row is **red until the decoder is fixed** and carries a `represents` count (how many corpus failures that specimen stands for), so the table's length is the open-defect census.
 
 A row's `represents` is the cluster count from a live census pass. A count taken any other way, from a research note or before a rebuild, carries its date and source in [PROVENANCE.md](../../../../internal/source/testdata/PROVENANCE.md) beside the specimen, and the row holds the number only.
 
-The assertions nest. The chain must succeed always; the moment `testdata/pending/<name>.golden.json` exists, the row also **golden-matches**, and before that chain success is the only assertion, so the green flip is the graduation signal.
+The assertions nest. The chain must succeed always; the moment `testdata/red_ledger/<name>.golden.json` exists, the row also **golden-matches**, and before that chain success is the only assertion, so the green flip is the graduation signal.
 
 ```go
 value, error := item.chain(specimens...)
@@ -65,15 +65,15 @@ if os.IsNotExist(error) {
 }
 ```
 
-`TestPendingCases_RedUntilFixed` runs the table; `go test ./internal/source -update` writes the golden once the decoder handles the row.
+`TestRedCases_RedUntilFixed` runs the table; `go test ./internal/source -update` writes the golden once the decoder handles the row.
 
-`documented_defects` pins **source-side** failures (a truncated attachment, a body the source never published): green only while the failure stays **exactly as classified** (the `contains` fragment), red the moment it drifts or heals. `TestDocumentedDefects_PinnedClassification` runs it, and each row carries a dated `reason` verdict.
+`characterization_cases` pins **source-side** failures (a truncated attachment, a body the source never published): green only while the failure stays **exactly as classified** (the `contains` fragment), red the moment it drifts or heals. `TestCharacterizationCases_PinnedClassification` runs it, and each row carries a dated `verdict_note`.
 
-Each chain function in the file mirrors the indexer slice call-for-call. `ocr_judgment_chain` and `appellate_docket_chain` spell the refusals they raise themselves `index settles <outcome>: <cause>` with the index outcome token, so a documented-defect `contains` fragment matches the census outcome that ties a row to its cluster. The zero-units refusals of `act_chain` and `judgment_chain` keep their own wording, and an error from anything a chain calls, a decoder, an extractor or `judgment_chain`, passes through unchanged. A slice that reads bytes an acquire leg derives re-derives them the way that leg does, as `ocr_judgment_chain` OCRs the stored attachment through a copy of the acquire OCR assembly at its confidence floor. A new deep condition gets a new chain, not a new dispatch case.
+Each chain function in the file mirrors the indexer slice call-for-call. `ocr_judgment_chain` and `appellate_docket_chain` spell the refusals they raise themselves `index settles <outcome>: <cause>` with the index outcome token, so a characterization case's `contains` fragment matches the census outcome that ties a row to its cluster. The zero-units refusals of `act_chain` and `judgment_chain` keep their own wording, and an error from anything a chain calls, a decoder, an extractor or `judgment_chain`, passes through unchanged. A slice that reads bytes an acquire leg derives re-derives them the way that leg does, as `ocr_judgment_chain` OCRs the stored attachment through a copy of the acquire OCR assembly at its confidence floor. A new deep condition gets a new chain, not a new dispatch case.
 
-**Graduation**: when the decoder fix lands, the specimen and its reviewed golden move out to the permanent per-source scenario table in the **same commit** as the fix — a promoted pair is a permanent regression test, and a row left in the pending table after its fix rots.
+**Graduation**: when the decoder fix lands, the specimen and its reviewed golden move out to the permanent per-source scenario table in the **same commit** as the fix — a graduated pair is a permanent regression test, and a row left in `red_cases` after its fix rots.
 
-The runner mechanics (`evaluate_pending_case`, `evaluate_documented_defect`) are themselves pinned by fake-chain tests in the same file (`TestEvaluatePendingCase_*`, `TestEvaluateDocumentedDefect_*`), no fixtures.
+The runner mechanics (`evaluate_red_case`, `evaluate_characterization_case`) are themselves pinned by fake-chain tests in the same file (`TestEvaluateRedCase_*`, `TestEvaluateCharacterizationCase_*`), no fixtures.
 
 ## Where specimens come from — the acquisition-table census
 
@@ -95,8 +95,8 @@ just db query "SELECT error, seam, count(*) FROM acquisition_status WHERE status
 
 Each failed row carries `error` (the globally-unique event name) and `seam`. The vocabulary lives in [internal/event/event.go](../../../../internal/event/event.go): `event.Event{Name, Seam, Params, Engine}` with four seams — `decode-golden` (deterministic decoder refusal, harvestable), `network-signal` (transient, retriable, excluded from the census), `coverage-gap`, `data-defect`.
 
-Free-text detail (params, Go error text) lives in telemetry (`just obs logs`), not in any file.
+Free-text detail (params, Go error text) lives in telemetry (`just observability logs`), not in any file.
 
 Event names are globally unique and schema-checked by AST-walking tests in [internal/event/catalogue_test.go](../../../../internal/event/catalogue_test.go).
 
-**Curation** resolves specimen bytes from the failed row's own `id` via the document keys (`<id>#document`, `<id>#evidence`, `<id>#record`) or the row's `url`; they are copied by hand into `testdata/pending/` during red-ledger curation, and the table row is the registration.
+**Curation** resolves specimen bytes from the failed row's own `id` via the document keys (`<id>#document`, `<id>#evidence`, `<id>#record`) or the row's `url`; they are copied by hand into `testdata/red_ledger/` during red-ledger curation, and the table row is the registration.
